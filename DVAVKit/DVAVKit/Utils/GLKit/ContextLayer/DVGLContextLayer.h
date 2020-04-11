@@ -12,6 +12,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface DVGLContextLayer : GLKView 
 
+#pragma mark - <-- Initializer -->
+- (nullable instancetype)init UNAVAILABLE_ATTRIBUTE;
++ (nullable instancetype)new UNAVAILABLE_ATTRIBUTE;
+
 @end
 
 NS_ASSUME_NONNULL_END

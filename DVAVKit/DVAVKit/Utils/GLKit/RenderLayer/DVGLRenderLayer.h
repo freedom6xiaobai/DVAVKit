@@ -16,6 +16,11 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong, readonly) GLKBaseEffect *baseEffect;
 
 
+#pragma mark - <-- Initializer -->
+- (nullable instancetype)init UNAVAILABLE_ATTRIBUTE;
++ (nullable instancetype)new UNAVAILABLE_ATTRIBUTE;
+
+
 #pragma mark - <-- Method -->
 - (void)setBackgroundColorWithR:(float)r G:(float)g B:(float)b A:(float)a;
 
