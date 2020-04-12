@@ -91,6 +91,9 @@
     CGFloat w = sampleRect.size.width / (sampleRect.size.width + sampleRect.origin.x * 2);
     CGFloat h = sampleRect.size.height / (sampleRect.size.height + sampleRect.origin.y * 2);
     
+    if (w >= 0.99) w = 1.0f;
+    if (h >= 0.99) h = 1.0f;
+    
     CGSize noramlSize = CGSizeMake(w, h);
     
     const GLfloat vertices[] = {

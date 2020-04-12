@@ -345,7 +345,7 @@
                             timeStamp:(uint64_t)timeStamp {
     
     DVRtmpPacket * packet = [[DVRtmpPacket alloc] init];
-    packet.timeStamp = timeStamp;
+    packet.timeStamp = (uint32_t)timeStamp;
     
     DVVideoFlvTagFrameType frameType = isKeyFrame ? DVVideoFlvTagFrameType_Key : DVVideoFlvTagFrameType_NotKey;
     
@@ -365,7 +365,7 @@
                             timeStamp:(uint64_t)timeStamp {
    
     DVRtmpPacket *packet = [[DVRtmpPacket alloc] init];
-    packet.timeStamp = timeStamp;
+    packet.timeStamp = (uint32_t)timeStamp;
     
     DVAACAudioPacket *aacPacket = [DVAACAudioPacket packetWithAAC:data];
     packet.audioData = [DVAudioFlvTagData tagDataWithAACPacket:aacPacket];
