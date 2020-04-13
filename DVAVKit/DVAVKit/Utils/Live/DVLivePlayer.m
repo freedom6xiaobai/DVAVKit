@@ -30,6 +30,7 @@
 @property(nonatomic, strong) dispatch_semaphore_t videoLock;
 
 @property(nonatomic, assign) BOOL isRecording;
+@property(nonatomic, assign) BOOL isRecordVideoToPhotoAlbum;
 
 @property(nonatomic, assign) CGRect preViewFrame;
 
@@ -163,6 +164,19 @@
     [self.inFmtCtx stopReadPacket];
 }
 
+- (void)saveScreenshotToPhotoAlbum {
+    UIImage *image = self.preOPGLView.openglSnapshotImage;
+    if (!image) {
+        NSLog(@"[DVLivePlayer ERROR]: 截图为空");
+        return;
+    }
+    
+    [DVVideoUtils saveImageToPhotoAlbum:image completion:^(BOOL finished) {
+        NSLog(@"[DVLivePlayer LOG]: 截图保存成功");
+    }];
+    
+}
+
 - (void)startRecordToURL:(NSString *)url {
     if (self.isRecording) return;
     
@@ -177,6 +191,10 @@
     
     [self.recordFmtCtx openWithURL:url format:format];
     self.isRecording = YES;
+}
+
+- (void)startRecordToPhotoAlbum {
+    
 }
 
 - (void)stopRecord {
@@ -285,6 +303,8 @@
          decodecBuffer:(CMSampleBufferRef)buffer
           isFirstFrame:(BOOL)isFirstFrame
               userInfo:(void *)userInfo {
+    
+    
     
     if (_preOPGLView) {
         CVPixelBufferRef pixelBuffer = (CVImageBufferRef)CMSampleBufferGetImageBuffer(buffer);

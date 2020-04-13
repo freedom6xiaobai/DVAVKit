@@ -18,6 +18,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 #pragma mark - <-- Method -->
+// 截图
+- (UIImage *)openglSnapshotImage;
+
+
 // 配置
 - (void)setBackgroundColorWithR:(float)r G:(float)g B:(float)b A:(float)a;
 

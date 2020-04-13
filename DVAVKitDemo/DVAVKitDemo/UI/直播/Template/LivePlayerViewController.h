@@ -15,7 +15,12 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy) NSString *url;
 
 @property(nonatomic, strong) UIButton *btnRecord;
+@property(nonatomic, strong) UIButton *btnScreenShot;
+
+- (void)initBtnScreenShot;
 - (void)initBtnRecord;
+
+- (void)onClickForScreenShot:(UIButton *)sender;
 - (void)onClickForRecord:(UIButton *)sender;
 
 @end

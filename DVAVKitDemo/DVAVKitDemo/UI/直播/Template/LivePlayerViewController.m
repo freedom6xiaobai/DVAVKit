@@ -45,7 +45,26 @@
     [self.view addSubview:self.btnRecord];
 }
 
+- (void)initBtnScreenShot {
+    self.btnScreenShot = ({
+        UIButton *b = [[UIButton alloc] initWithFrame:CGRectMake(20,
+                                                                 self.view.height - 80,
+                                                                 100,
+                                                                 40)];
+        [b setTitle:@"截图" forState:UIControlStateNormal];
+        b.titleColor = [UIColor whiteColor];
+        b.titleColorForHighlighted = [UIColor grayColor];
+        [b addTarget:self action:@selector(onClickForScreenShot:) forControlEvents:UIControlEventTouchUpInside];
+        b;
+    });
+    [self.view addSubview:self.btnScreenShot];
+}
+
 - (void)onClickForRecord:(UIButton *)sender {
+    
+}
+
+- (void)onClickForScreenShot:(UIButton *)sender {
     
 }
 

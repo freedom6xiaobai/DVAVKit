@@ -74,6 +74,7 @@
 }
 
 
+#pragma mark - <-- 保存视频 -->
 + (void)saveVideoToPhotoAlbum:(NSString *)filePath completion:(void (^)(BOOL))completion {
     NSParameterAssert(completion);
     
@@ -103,11 +104,44 @@
     
     do {
         if (error) {
-            NSLog(@"[DVVideoUtils ERROR]: 保存视频到系统相册失败-> %@", videoPath);
+            NSLog(@"[DVVideoUtils ERROR]: 保存视频到系统相册失败 URL-> %@, error-> %@", videoPath, error.localizedDescription);
             break;
         }
         
         NSLog(@"[DVVideoUtils ERROR]: 保存视频到系统相册成功-> %@", videoPath);
+        ret = YES;
+        
+    } while (NO);
+    
+    self.completionBlock(ret);
+    self.completionBlock = nil;
+}
+
+
+#pragma mark - <-- 保存图片 -->
++ (void)saveImageToPhotoAlbum:(UIImage *)image completion:(void (^)(BOOL))completion {
+    NSParameterAssert(completion);
+    NSParameterAssert(image);
+    
+    DVVideoUtils *untils = [[DVVideoUtils alloc] init];
+    untils.completionBlock = completion;
+    [untils saveImageToPhotoAlbum:image];
+}
+
+- (void)saveImageToPhotoAlbum:(UIImage *)image {
+    UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSavingWithError:contextInfo:), nil);
+}
+
+- (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo {
+    BOOL ret = NO;
+    
+    do {
+        if (error) {
+            NSLog(@"[DVVideoUtils ERROR]: 保存图片到系统相册失败-> %@",error.localizedDescription);
+            break;
+        }
+        
+        NSLog(@"[DVVideoUtils ERROR]: 保存图片到系统相册成功");
         ret = YES;
         
     } while (NO);

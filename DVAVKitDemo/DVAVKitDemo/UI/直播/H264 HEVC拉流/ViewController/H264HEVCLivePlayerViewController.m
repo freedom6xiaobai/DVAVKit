@@ -42,6 +42,7 @@
     
     [self.view insertSubview:self.livePlayer.preView atIndex:0];
     [self initBtnRecord];
+    [self initBtnScreenShot];
 }
 
 
@@ -59,6 +60,10 @@
     else {
         [self.livePlayer stopRecord];
     }
+}
+
+- (void)onClickForScreenShot:(UIButton *)sender {
+    [self.livePlayer saveScreenshotToPhotoAlbum];
 }
 
 @end

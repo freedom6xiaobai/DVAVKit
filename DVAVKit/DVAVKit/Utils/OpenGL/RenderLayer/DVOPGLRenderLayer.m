@@ -50,6 +50,19 @@
 
 
 #pragma mark - <-- Method -->
+
+//MARK: - <-- 截图 -->
+- (UIImage *)openglSnapshotImage {
+    CGSize size = self.bounds.size;
+    UIGraphicsBeginImageContextWithOptions(size, NO, [UIScreen mainScreen].scale);
+    CGRect rect = self.frame;
+    [self drawViewHierarchyInRect:rect afterScreenUpdates:YES];
+    UIImage *snapshotImage = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return snapshotImage;
+}
+
+
 //MARK: - <-- 配置 -->
 - (void)setBackgroundColorWithR:(float)r G:(float)g B:(float)b A:(float)a {
     self.r = r;

@@ -17,6 +17,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (void)saveVideoToPhotoAlbum:(NSString *)filePath completion:(void(^)(BOOL finished))completion;
 
++ (void)saveImageToPhotoAlbum:(UIImage *)image completion:(void (^)(BOOL finished))completion;
+
 @end
 
 NS_ASSUME_NONNULL_END
