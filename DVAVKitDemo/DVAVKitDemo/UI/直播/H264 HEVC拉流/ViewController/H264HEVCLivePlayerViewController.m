@@ -51,7 +51,7 @@
     
     if (sender.selected) {
         NSDate *date = [NSDate date];
-        NSString *fileName = [NSString stringWithFormat:@"Live-%@.flv", date];
+        NSString *fileName = [NSString stringWithFormat:@"Live-%@.mp4", date];
         NSString *documemtPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
         NSString *path = [documemtPath stringByAppendingPathComponent:fileName];
         [self.livePlayer startRecordToURL:path];

@@ -33,6 +33,8 @@
 	<string></string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string></string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>请允许保存视频</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string></string>
 	<key>NSSiriUsageDescription</key>

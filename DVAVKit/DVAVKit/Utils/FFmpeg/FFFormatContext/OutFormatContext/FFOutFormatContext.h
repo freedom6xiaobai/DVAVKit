@@ -16,6 +16,9 @@ NS_ASSUME_NONNULL_BEGIN
 @class FFOutFormatContext;
 @protocol FFOutFormatContextDelegate <NSObject>
 @optional
+
+- (void)FFOutFormatContextDidFinishedOutput:(FFOutFormatContext *)context;
+
 - (void)FFOutFormatContext:(FFOutFormatContext *)context outIOPacket:(FFPacket *)packet;
 
 @end
@@ -27,6 +30,7 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark - <-- Property -->
 @property(nonatomic, weak) id<FFOutFormatContextDelegate> delegate;
 @property(nonatomic, assign, readonly) BOOL isOpening;
+@property(nonatomic, copy, readonly) NSString *url;
 
 
 #pragma mark - <-- Initializer -->

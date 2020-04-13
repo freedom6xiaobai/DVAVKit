@@ -13,7 +13,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface DVVideoUtils : NSObject
 
-- (UIImage *)convertToImageFromSampleBuffer:(CMSampleBufferRef)sampleBuffer;
++ (UIImage *)convertToImageFromSampleBuffer:(CMSampleBufferRef)sampleBuffer;
+
++ (void)saveVideoToPhotoAlbum:(NSString *)filePath completion:(void(^)(BOOL finished))completion;
 
 @end
 

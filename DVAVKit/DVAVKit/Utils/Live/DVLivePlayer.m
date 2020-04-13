@@ -12,8 +12,10 @@
 #import "DVAudioToolKit.h"
 #import "DVOPGLPreview.h"
 #import "DVAudioQueue.h"
+#import "DVVideoUtils.h"
 
-@interface DVLivePlayer () <FFInFormatContextDelegate, DVVideoDecoderDelegate, DVAudioDecoderDelegate, DVAudioQueueDelegate>
+
+@interface DVLivePlayer () <FFInFormatContextDelegate, FFOutFormatContextDelegate, DVVideoDecoderDelegate, DVAudioDecoderDelegate, DVAudioQueueDelegate>
 
 @property(nonatomic, strong) DVOPGLPreview *preOPGLView;
 @property(nonatomic, strong) DVAudioQueue *audioQueue;
@@ -94,6 +96,7 @@
 - (FFOutFormatContext *)recordFmtCtx {
     if (!_recordFmtCtx) {
         _recordFmtCtx = [FFOutFormatContext contextFromInFmtCtx:self.inFmtCtx];
+        _recordFmtCtx.delegate = self;
     }
     return _recordFmtCtx;
 }
@@ -189,10 +192,7 @@
 }
 
 
-
-
-
-#pragma mark - <-- FF Delegate -->
+#pragma mark - <-- FF Input Delegate -->
 - (void)FFInFormatContext:(FFInFormatContext *)context videoInfo:(FFVideoInfo *)videoInfo {
     if ([videoInfo.codecName isEqualToString:@"h264"]) {
         self.videoDecoder = [[DVVideoH264HardwareDecoder alloc] initWithSps:videoInfo.sps
@@ -267,6 +267,16 @@
     }
     
     if (self.isRecording) [self.recordFmtCtx writePacket:packet];
+}
+
+
+#pragma mark - <-- FF Output Delegate -->
+- (void)FFOutFormatContextDidFinishedOutput:(FFOutFormatContext *)context {
+    if (!context.url) return;
+    
+    [DVVideoUtils saveVideoToPhotoAlbum:context.url completion:^(BOOL finished) {
+        NSLog(@"保存视频成功");
+    }];
 }
 
 

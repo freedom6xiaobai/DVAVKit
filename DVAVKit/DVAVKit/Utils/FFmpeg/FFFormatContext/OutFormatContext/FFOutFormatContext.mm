@@ -34,12 +34,15 @@
 @property(nonatomic, strong) dispatch_semaphore_t bufferLock;
 
 // VAR
+@property(nonatomic, copy, readwrite) NSString *url;
 @property(nonatomic, assign) int videoStreamIndex;
 @property(nonatomic, assign) int audioStreamIndex;
 @property(nonatomic, assign) BOOL isWriting;
 @property(nonatomic, assign) BOOL isFirstWrite;
 @property(nonatomic, assign) int64_t write_pts;
 @property(nonatomic, assign) int64_t write_dts;
+@property(nonatomic, assign) int64_t write_last_pts;
+@property(nonatomic, assign) int64_t write_last_dts;
 
 // Delegate
 @property(nonatomic, assign) BOOL isHadOutIODelegate;
@@ -76,6 +79,8 @@
         self.videoStreamIndex = -1;
         self.audioStreamIndex = -1;
         self.bufferSize = 32 * 1024;
+        self.write_last_pts = -9999;
+        self.write_last_dts = -9999;
     }
     return self;
 }
@@ -164,6 +169,7 @@
 - (void)openWithURL:(NSString *)url format:(NSString *)format {
     __weak __typeof(self)weakSelf = self;
     dispatch_async(self.outQueue, ^{
+        weakSelf.url = url;
         [weakSelf _openWithURL:url format:format];
     });
 }
@@ -252,6 +258,11 @@
             ffPkt->_pkt->pts -= weakSelf.write_pts;
             ffPkt->_pkt->dts -= weakSelf.write_dts;
             
+            if (ffPkt->_pkt->pts == weakSelf.write_last_pts) ffPkt->_pkt->pts += 1;
+            if (ffPkt->_pkt->dts == weakSelf.write_last_dts) ffPkt->_pkt->dts += 1;
+            weakSelf.write_last_pts = ffPkt->_pkt->pts;
+            weakSelf.write_last_dts = ffPkt->_pkt->dts;
+            
             if (weakSelf.weakInFmtCtx) {
                 [FFUtils convertTimeBaseWithPacket:ffPkt
                                       fromInFmtCtx:weakSelf.weakInFmtCtx
@@ -259,7 +270,8 @@
             }
             
             av_interleaved_write_frame(strongSelf->_outFmtCtx, ffPkt->_pkt);
-        
+            
+
         } while (NO);
         
         weakSelf.isWriting = NO;
@@ -292,6 +304,9 @@
         av_write_trailer(*fmtCtx);
         avformat_free_context(*fmtCtx);
         *fmtCtx = NULL;
+        if (self.delegate && [self.delegate respondsToSelector:@selector(FFOutFormatContextDidFinishedOutput:)]) {
+            [self.delegate FFOutFormatContextDidFinishedOutput:self];
+        }
     }
 }
 

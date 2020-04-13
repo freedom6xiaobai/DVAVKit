@@ -9,9 +9,16 @@
 #import "DVVideoUtils.h"
 #import <VideoToolbox/VideoToolbox.h>
 
+@interface DVVideoUtils ()
+
+@property(nonatomic, copy) void(^completionBlock)(BOOL finished);
+
+@end
+
+
 @implementation DVVideoUtils
 
-- (UIImage *)convertToImageFromSampleBuffer:(CMSampleBufferRef)sampleBuffer {
++ (UIImage *)convertToImageFromSampleBuffer:(CMSampleBufferRef)sampleBuffer {
     
     // Get a CMSampleBuffer's Core Video image buffer for the media data
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
@@ -64,6 +71,49 @@
     CGImageRelease(videoImage);
     
     return image;
+}
+
+
++ (void)saveVideoToPhotoAlbum:(NSString *)filePath completion:(void (^)(BOOL))completion {
+    NSParameterAssert(completion);
+    
+    DVVideoUtils *untils = [[DVVideoUtils alloc] init];
+    untils.completionBlock = completion;
+    [untils saveVideoToPhotoAlbum:filePath];
+}
+
+- (void)saveVideoToPhotoAlbum:(NSString *)filePath {
+    BOOL ret = UIVideoAtPathIsCompatibleWithSavedPhotosAlbum(filePath);
+    
+    if (ret) {
+        UISaveVideoAtPathToSavedPhotosAlbum(filePath,
+                                            self,
+                                            @selector(video:didFinishSavingWithError:contextInfo:),
+                                            nil);
+    } else {
+        NSLog(@"[DVVideoUtils ERROR]: 无法识别视频格式, 保存至相册失败 -> %@", filePath);
+        self.completionBlock(NO);
+        self.completionBlock = nil;
+    }
+}
+
+- (void)video:(NSString *)videoPath didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo {
+    
+    BOOL ret = NO;
+    
+    do {
+        if (error) {
+            NSLog(@"[DVVideoUtils ERROR]: 保存视频到系统相册失败-> %@", videoPath);
+            break;
+        }
+        
+        NSLog(@"[DVVideoUtils ERROR]: 保存视频到系统相册成功-> %@", videoPath);
+        ret = YES;
+        
+    } while (NO);
+    
+    self.completionBlock(ret);
+    self.completionBlock = nil;
 }
 
 @end
