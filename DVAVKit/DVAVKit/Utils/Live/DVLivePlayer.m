@@ -36,6 +36,7 @@
 
 @property(nonatomic, strong) NSMutableArray<DVVideoPacket *> *videoPacketBuffer;
 @property(nonatomic, assign) int64_t lastVideoPTS;
+@property(nonatomic, assign) BOOL isPreFirshVideoFrame;
 
 @end
 
@@ -212,6 +213,8 @@
 
 #pragma mark - <-- FF Input Delegate -->
 - (void)FFInFormatContext:(FFInFormatContext *)context videoInfo:(FFVideoInfo *)videoInfo {
+    self.isPreFirshVideoFrame = YES;
+    
     if ([videoInfo.codecName isEqualToString:@"h264"]) {
         self.videoDecoder = [[DVVideoH264HardwareDecoder alloc] initWithSps:videoInfo.sps
                                                                         pps:videoInfo.pps
@@ -251,19 +254,23 @@
 
 - (void)FFInFormatContext:(FFInFormatContext *)context readVideoPacket:(FFPacket *)packet {
     
-    // 转换时间戳
-//    FFVideoInfo *videoInfo = self.inFmtCtx.videoInfo;
-//    int64_t vPts = packet.pts;
-//    int64_t vDts = packet.dts;
-//
-//    NSData *data = packet.datas;
-//    [self.videoDecoder decodeVideoData:data
-//                                   pts:vPts
-//                                   dts:vDts
-//                                   fps:(int)videoInfo.fps
-//                              userInfo:nil];
+    // 首帧视频渲染
+    if (self.isPreFirshVideoFrame) {
+        // 转换时间戳
+        FFVideoInfo *videoInfo = self.inFmtCtx.videoInfo;
+        int64_t vPts = packet.pts;
+        int64_t vDts = packet.dts;
+        NSData *data = packet.datas;
+        [self.videoDecoder decodeVideoData:data
+                                       pts:vPts
+                                       dts:vDts
+                                       fps:(int)videoInfo.fps
+                                  userInfo:nil];
+        
+        self.isPreFirshVideoFrame = NO;
+    }
     
-    
+
     if (self.videoDecoder) {
         dispatch_semaphore_wait(self.videoLock, DISPATCH_TIME_FOREVER);
         DVVideoPacket *videoPkt = [[DVVideoPacket alloc] initWithData:packet.data size:packet.size];
@@ -304,8 +311,6 @@
           isFirstFrame:(BOOL)isFirstFrame
               userInfo:(void *)userInfo {
     
-    
-    
     if (_preOPGLView) {
         CVPixelBufferRef pixelBuffer = (CVImageBufferRef)CMSampleBufferGetImageBuffer(buffer);
         [self.preOPGLView displayWithPixelBuffer:pixelBuffer];
@@ -327,51 +332,110 @@
         playbackData:(uint8_t *)data
                 size:(UInt32)size
             userInfo:(void *)userInfo {
-    
+
     // 音视频同步, 视频解码到渲染几乎是实时，而音频解码到播放有段时间，首播快可以减少音频的码率
-    if (audioQueue.packetBuffer.count < 2) return;
-    
-    DVAudioPacket *audioPkt1 = audioQueue.packetBuffer[0];
-    DVAudioPacket *audioPkt2 = audioQueue.packetBuffer[1];
-    
-    int64_t aPts1 = [(__bridge NSNumber *)audioPkt1->_userInfo longLongValue];
-    int64_t aPts2 = [(__bridge NSNumber *)audioPkt2->_userInfo longLongValue];
-    
+//    if (audioQueue.packetBuffer.count < 2) return;
+
+//    DVAudioPacket *audioPkt1 = audioQueue.packetBuffer[0];
+//    DVAudioPacket *audioPkt2 = audioQueue.packetBuffer[1];
+
+    int64_t aPts1 = [(__bridge NSNumber *)userInfo longLongValue];
+//    int64_t aPts2 = [(__bridge NSNumber *)audioPkt2->_userInfo longLongValue];
+
     dispatch_semaphore_wait(self.videoLock, DISPATCH_TIME_FOREVER);
-    
+
     FFVideoInfo *videoInfo = self.inFmtCtx.videoInfo;
-    
+
     while (self.videoPacketBuffer.count > 0) {
         DVVideoPacket *videoPkt = self.videoPacketBuffer.firstObject;
         // 时间戳
         int64_t vPts = videoPkt.pts;
         int64_t vDts = videoPkt.dts;
-        
-        if (aPts1 < vPts && aPts2 < vPts) {
+
+        if (aPts1 < vPts) {
             break;
         }
-        else if (self.lastVideoPTS == vPts || (aPts1 <= vPts && vPts <= aPts2)) {
-            NSData *data = videoPkt.data;
-            [self.videoDecoder decodeVideoData:data
-                                           pts:vPts
-                                           dts:vDts
-                                           fps:(int)videoInfo.fps
-                                      userInfo:nil];
-            
-            [self.videoPacketBuffer removeObjectAtIndex:0];
-            
-            self.lastVideoPTS = vPts;
-            break;
-        }
-        else if (vPts < aPts1){
-            // 丢帧
-            [self.videoPacketBuffer removeObjectAtIndex:0];
-        }
+
+
+        NSData *data = videoPkt.data;
+        [self.videoDecoder decodeVideoData:data
+                                       pts:vPts
+                                       dts:vDts
+                                       fps:(int)videoInfo.fps
+                                  userInfo:nil];
+
+        [self.videoPacketBuffer removeObjectAtIndex:0];
+
+
+//        if (self.lastVideoPTS == vPts || (aPts1 <= vPts && vPts <= aPts2)) {
+//            self.lastVideoPTS = vPts;
+//            break;
+//        }
+//        else if (vPts < aPts1){
+//            NSLog(@"[DVLivePlayer LOG]: 丢帧-> pts:%d  dts:%d", vPts, vDts);
+//        }
 
         videoPkt = nil;
     }
-    
+
+    NSLog(@"[DVLivePlayer LOG]: videoPacket count-> %d", self.videoPacketBuffer.count);
+
     dispatch_semaphore_signal(self.videoLock);
 }
+
+//- (void)DVAudioQueue:(DVAudioQueue *)audioQueue
+//        playbackData:(uint8_t *)data
+//                size:(UInt32)size
+//            userInfo:(void *)userInfo {
+//
+//    // 音视频同步, 视频解码到渲染几乎是实时，而音频解码到播放有段时间，首播快可以减少音频的码率
+//    if (audioQueue.packetBuffer.count < 2) return;
+//
+//    DVAudioPacket *audioPkt1 = audioQueue.packetBuffer[0];
+//    DVAudioPacket *audioPkt2 = audioQueue.packetBuffer[1];
+//
+//    int64_t aPts1 = [(__bridge NSNumber *)audioPkt1->_userInfo longLongValue];
+//    int64_t aPts2 = [(__bridge NSNumber *)audioPkt2->_userInfo longLongValue];
+//
+//    dispatch_semaphore_wait(self.videoLock, DISPATCH_TIME_FOREVER);
+//
+//    FFVideoInfo *videoInfo = self.inFmtCtx.videoInfo;
+//
+//    while (self.videoPacketBuffer.count > 0) {
+//        DVVideoPacket *videoPkt = self.videoPacketBuffer.firstObject;
+//        // 时间戳
+//        int64_t vPts = videoPkt.pts;
+//        int64_t vDts = videoPkt.dts;
+//
+//        if (aPts1 < vPts && aPts2 < vPts) {
+//            break;
+//        }
+//
+//
+//        NSData *data = videoPkt.data;
+//        [self.videoDecoder decodeVideoData:data
+//                                       pts:vPts
+//                                       dts:vDts
+//                                       fps:(int)videoInfo.fps
+//                                  userInfo:nil];
+//
+//        [self.videoPacketBuffer removeObjectAtIndex:0];
+//
+//
+//        if (self.lastVideoPTS == vPts || (aPts1 <= vPts && vPts <= aPts2)) {
+//            self.lastVideoPTS = vPts;
+//            break;
+//        }
+//        else if (vPts < aPts1){
+//            NSLog(@"[DVLivePlayer LOG]: 丢帧-> pts:%d  dts:%d", vPts, vDts);
+//        }
+//
+//        videoPkt = nil;
+//    }
+//
+//    NSLog(@"[DVLivePlayer LOG]: videoPacket count-> %d", self.videoPacketBuffer.count);
+//
+//    dispatch_semaphore_signal(self.videoLock);
+//}
 
 @end
