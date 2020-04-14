@@ -47,8 +47,8 @@
 - (void)loadData {
     self.tableDataSource.models = self.listViewModel.tableItems;
     
-    self.listView.liveURLText.text = @"rtmp://192.168.3.57:1935/live/stream";
-//    self.listView.liveURLText.text = @"rtmp://192.168.3.57:1935/live/pc";
+//    self.listView.liveURLText.text = @"rtmp://192.168.3.57:1935/live/stream";
+    self.listView.liveURLText.text = @"rtmp://192.168.3.57:1935/live/pc";
 }
 
 

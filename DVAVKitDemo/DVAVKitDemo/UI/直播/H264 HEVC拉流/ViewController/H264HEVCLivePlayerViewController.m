@@ -51,11 +51,14 @@
     sender.selected = !sender.selected;
     
     if (sender.selected) {
-        NSDate *date = [NSDate date];
-        NSString *fileName = [NSString stringWithFormat:@"Live-%@.mp4", date];
-        NSString *documemtPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-        NSString *path = [documemtPath stringByAppendingPathComponent:fileName];
-        [self.livePlayer startRecordToURL:path];
+
+        [self.livePlayer startRecordToPhotoAlbumWithCompletion:^(BOOL finished) {
+            if (finished) {
+                [DVNotice presentMessageToRootViewForSuccess:@"录像成功,已保存到系统相册"];
+            } else {
+                [DVNotice presentMessageToRootViewForWarn:@"录像失败"];
+            }
+        }];
     }
     else {
         [self.livePlayer stopRecord];
@@ -63,7 +66,13 @@
 }
 
 - (void)onClickForScreenShot:(UIButton *)sender {
-    [self.livePlayer saveScreenshotToPhotoAlbum];
+    [self.livePlayer saveScreenshotToPhotoAlbumWithCompletion:^(BOOL finished) {
+        if (finished) {
+            [DVNotice presentMessageToRootViewForSuccess:@"截图成功,已保存至系统相册"];
+        } else {
+            [DVNotice presentMessageToRootViewForWarn:@"截图失败"];
+        }
+    }];
 }
 
 @end

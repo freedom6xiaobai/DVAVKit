@@ -22,15 +22,16 @@ NS_ASSUME_NONNULL_BEGIN
 
 #pragma mark - <-- Method -->
 - (void)connectToURL:(NSString *)url;
+- (void)disconnect;
 
 - (void)startPlay;
 - (void)stopPlay;
 
 - (UIImage *)screenshot;
-- (void)saveScreenshotToPhotoAlbum;
+- (void)saveScreenshotToPhotoAlbumWithCompletion:(void(^)(BOOL finished))completion;
 
-- (void)startRecordToURL:(NSString *)url;
-- (void)startRecordToPhotoAlbum;
+- (void)startRecordToURL:(NSString *)url completion:(void(^)(BOOL finished))completion;
+- (void)startRecordToPhotoAlbumWithCompletion:(void(^)(BOOL finished))completion;
 - (void)stopRecord;
 
 @end

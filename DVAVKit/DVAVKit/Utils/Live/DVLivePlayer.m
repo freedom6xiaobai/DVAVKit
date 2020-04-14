@@ -30,7 +30,8 @@
 @property(nonatomic, strong) dispatch_semaphore_t videoLock;
 
 @property(nonatomic, assign) BOOL isRecording;
-@property(nonatomic, assign) BOOL isRecordVideoToPhotoAlbum;
+@property(nonatomic, assign) BOOL isRecordToPhotoAlbum;
+@property(nonatomic, copy) void(^recordCompletion)(BOOL finished);
 
 @property(nonatomic, assign) CGRect preViewFrame;
 
@@ -154,6 +155,10 @@
     [self.inFmtCtx openWithURL:url];
 }
 
+- (void)disconnect {
+    [self.inFmtCtx closeURL];
+}
+
 - (void)startPlay {
     if (self.inFmtCtx.isReading) return;
     [self.inFmtCtx startReadPacket];
@@ -165,20 +170,22 @@
     [self.inFmtCtx stopReadPacket];
 }
 
-- (void)saveScreenshotToPhotoAlbum {
+- (UIImage *)screenshot {
+    return self.preOPGLView.openglSnapshotImage;
+}
+
+- (void)saveScreenshotToPhotoAlbumWithCompletion:(void (^)(BOOL))completion {
     UIImage *image = self.preOPGLView.openglSnapshotImage;
     if (!image) {
         NSLog(@"[DVLivePlayer ERROR]: 截图为空");
         return;
     }
     
-    [DVVideoUtils saveImageToPhotoAlbum:image completion:^(BOOL finished) {
-        NSLog(@"[DVLivePlayer LOG]: 截图保存成功");
-    }];
+    [DVVideoUtils saveImageToPhotoAlbum:image completion:completion];
     
 }
 
-- (void)startRecordToURL:(NSString *)url {
+- (void)startRecordToURL:(NSString *)url completion:(void (^)(BOOL))completion {
     if (self.isRecording) return;
     
     if (!self.inFmtCtx.isOpening) {
@@ -190,12 +197,25 @@
     NSString *format = @"mp4";
     if (array.count >= 2) format = array.lastObject;
     
+    self.isRecordToPhotoAlbum = NO;
+    self.recordCompletion = completion;
     [self.recordFmtCtx openWithURL:url format:format];
     self.isRecording = YES;
 }
 
-- (void)startRecordToPhotoAlbum {
+- (void)startRecordToPhotoAlbumWithCompletion:(void (^)(BOOL))completion {
+    if (!self.inFmtCtx.isOpening) {
+        NSLog(@"[DVLivePlayer ERROR]: 请打开源文件,再录制");
+        return;
+    }
     
+    NSString *fileName = [NSString stringWithFormat:@"temp-live-record-%@.mp4", [NSDate date]];
+    NSString *documemtPath = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *url = [documemtPath stringByAppendingPathComponent:fileName];
+    self.isRecordToPhotoAlbum = YES;
+    self.recordCompletion = completion;
+    [self.recordFmtCtx openWithURL:url format:@"mp4"];
+    self.isRecording = YES;
 }
 
 - (void)stopRecord {
@@ -299,8 +319,21 @@
 - (void)FFOutFormatContextDidFinishedOutput:(FFOutFormatContext *)context {
     if (!context.url) return;
     
+    if (!self.recordCompletion) return;
+    __weak __typeof(self)weakSelf = self;
     [DVVideoUtils saveVideoToPhotoAlbum:context.url completion:^(BOOL finished) {
-        NSLog(@"保存视频成功");
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (weakSelf.isRecordToPhotoAlbum) {
+                NSFileManager *fileManager = [NSFileManager defaultManager];
+                if ([fileManager fileExistsAtPath:context.url]) {
+                    [fileManager removeItemAtPath:context.url error:nil];
+                }
+                weakSelf.isRecordToPhotoAlbum = NO;
+            }
+            
+            weakSelf.recordCompletion(finished);
+            weakSelf.recordCompletion = nil;
+        });
     }];
 }
 
@@ -328,19 +361,53 @@
 
 
 #pragma mark - <-- AudioQueue Delegate -->
+//- (void)DVAudioQueue:(DVAudioQueue *)audioQueue
+//        playbackData:(uint8_t *)data
+//                size:(UInt32)size
+//            userInfo:(void *)userInfo {
+//
+//    // 音视频同步, 视频解码到渲染几乎是实时，而音频解码到播放有段时间，首播快可以减少音频的码率
+//    int64_t aPts = [(__bridge NSNumber *)userInfo longLongValue];
+//
+//    dispatch_semaphore_wait(self.videoLock, DISPATCH_TIME_FOREVER);
+//
+//    FFVideoInfo *videoInfo = self.inFmtCtx.videoInfo;
+//
+//    while (self.videoPacketBuffer.count > 0) {
+//        DVVideoPacket *videoPkt = self.videoPacketBuffer.firstObject;
+//        // 时间戳
+//        int64_t vPts = videoPkt.pts;
+//        int64_t vDts = videoPkt.dts;
+//
+//        if (aPts < vPts) break;
+//
+//        NSData *data = videoPkt.data;
+//        [self.videoDecoder decodeVideoData:data
+//                                       pts:vPts
+//                                       dts:vDts
+//                                       fps:(int)videoInfo.fps
+//                                  userInfo:nil];
+//
+//        [self.videoPacketBuffer removeObjectAtIndex:0];
+//        videoPkt = nil;
+//    }
+//
+//    dispatch_semaphore_signal(self.videoLock);
+//}
+
 - (void)DVAudioQueue:(DVAudioQueue *)audioQueue
         playbackData:(uint8_t *)data
                 size:(UInt32)size
             userInfo:(void *)userInfo {
 
     // 音视频同步, 视频解码到渲染几乎是实时，而音频解码到播放有段时间，首播快可以减少音频的码率
-//    if (audioQueue.packetBuffer.count < 2) return;
+    if (audioQueue.packetBuffer.count < 2) return;
 
-//    DVAudioPacket *audioPkt1 = audioQueue.packetBuffer[0];
-//    DVAudioPacket *audioPkt2 = audioQueue.packetBuffer[1];
+    DVAudioPacket *audioPkt1 = audioQueue.packetBuffer[0];
+    DVAudioPacket *audioPkt2 = audioQueue.packetBuffer[1];
 
-    int64_t aPts1 = [(__bridge NSNumber *)userInfo longLongValue];
-//    int64_t aPts2 = [(__bridge NSNumber *)audioPkt2->_userInfo longLongValue];
+    int64_t aPts1 = [(__bridge NSNumber *)audioPkt1->_userInfo longLongValue];
+    int64_t aPts2 = [(__bridge NSNumber *)audioPkt2->_userInfo longLongValue];
 
     dispatch_semaphore_wait(self.videoLock, DISPATCH_TIME_FOREVER);
 
@@ -352,7 +419,7 @@
         int64_t vPts = videoPkt.pts;
         int64_t vDts = videoPkt.dts;
 
-        if (aPts1 < vPts) {
+        if (aPts1 < vPts && aPts2 < vPts) {
             break;
         }
 
@@ -367,75 +434,20 @@
         [self.videoPacketBuffer removeObjectAtIndex:0];
 
 
-//        if (self.lastVideoPTS == vPts || (aPts1 <= vPts && vPts <= aPts2)) {
-//            self.lastVideoPTS = vPts;
-//            break;
-//        }
+        if (self.lastVideoPTS == vPts || (aPts1 <= vPts && vPts <= aPts2)) {
+            self.lastVideoPTS = vPts;
+            break;
+        }
 //        else if (vPts < aPts1){
-//            NSLog(@"[DVLivePlayer LOG]: 丢帧-> pts:%d  dts:%d", vPts, vDts);
+////            NSLog(@"[DVLivePlayer LOG]: 丢帧-> pts:%d  dts:%d", vPts, vDts);
 //        }
 
         videoPkt = nil;
     }
 
-    NSLog(@"[DVLivePlayer LOG]: videoPacket count-> %d", self.videoPacketBuffer.count);
+//    NSLog(@"[DVLivePlayer LOG]: videoPacket count-> %d", self.videoPacketBuffer.count);
 
     dispatch_semaphore_signal(self.videoLock);
 }
-
-//- (void)DVAudioQueue:(DVAudioQueue *)audioQueue
-//        playbackData:(uint8_t *)data
-//                size:(UInt32)size
-//            userInfo:(void *)userInfo {
-//
-//    // 音视频同步, 视频解码到渲染几乎是实时，而音频解码到播放有段时间，首播快可以减少音频的码率
-//    if (audioQueue.packetBuffer.count < 2) return;
-//
-//    DVAudioPacket *audioPkt1 = audioQueue.packetBuffer[0];
-//    DVAudioPacket *audioPkt2 = audioQueue.packetBuffer[1];
-//
-//    int64_t aPts1 = [(__bridge NSNumber *)audioPkt1->_userInfo longLongValue];
-//    int64_t aPts2 = [(__bridge NSNumber *)audioPkt2->_userInfo longLongValue];
-//
-//    dispatch_semaphore_wait(self.videoLock, DISPATCH_TIME_FOREVER);
-//
-//    FFVideoInfo *videoInfo = self.inFmtCtx.videoInfo;
-//
-//    while (self.videoPacketBuffer.count > 0) {
-//        DVVideoPacket *videoPkt = self.videoPacketBuffer.firstObject;
-//        // 时间戳
-//        int64_t vPts = videoPkt.pts;
-//        int64_t vDts = videoPkt.dts;
-//
-//        if (aPts1 < vPts && aPts2 < vPts) {
-//            break;
-//        }
-//
-//
-//        NSData *data = videoPkt.data;
-//        [self.videoDecoder decodeVideoData:data
-//                                       pts:vPts
-//                                       dts:vDts
-//                                       fps:(int)videoInfo.fps
-//                                  userInfo:nil];
-//
-//        [self.videoPacketBuffer removeObjectAtIndex:0];
-//
-//
-//        if (self.lastVideoPTS == vPts || (aPts1 <= vPts && vPts <= aPts2)) {
-//            self.lastVideoPTS = vPts;
-//            break;
-//        }
-//        else if (vPts < aPts1){
-//            NSLog(@"[DVLivePlayer LOG]: 丢帧-> pts:%d  dts:%d", vPts, vDts);
-//        }
-//
-//        videoPkt = nil;
-//    }
-//
-//    NSLog(@"[DVLivePlayer LOG]: videoPacket count-> %d", self.videoPacketBuffer.count);
-//
-//    dispatch_semaphore_signal(self.videoLock);
-//}
 
 @end
